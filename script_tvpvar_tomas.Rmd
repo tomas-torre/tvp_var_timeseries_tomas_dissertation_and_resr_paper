@@ -1,0 +1,244 @@
+##DISSERTACAO TOMAS
+setwd("C:/Users/tomas/OneDrive/Downloads/Dissertação/base_de_dados")
+
+#################################################################
+#Asymmetric Dynamic Time TVP Connectedness model
+#################################################################
+#Load the package
+################################################################
+
+## Asymmetric TVP-VAR connectedness approach
+## Adekoya, Akinseye, Antonakakis, Chatziantoniou, Gabauer, and Oliyide (2021): Crude oil and Islamic sectoral stocks: Asymmetric connectedness and investment strategies
+## The pairwise connectedness index is implemented according to:
+##  Gabauer, D. (2021). Dynamic measures of asymmetric & pairwise connectedness within an optimal currency area: Evidence from the ERM I system. Journal of Multinational Financial Management, 60, 100680.
+## The TVP-VAR connectedness approach is implemented according to:
+##  Antonakakis, N., Chatziantoniou, I., & Gabauer, D. (2020). Refined measures of dynamic connectedness based on time-varying parameter vector autoregressions. Journal of Risk and Financial Management, 13(4), 84.
+
+library(devtools)
+# install_github("GabauerDavid/ConnectednessApproach")
+library("ConnectednessApproach")
+#source("caviar.R")
+library(tidyverse)
+set.seed(1)
+library(xts)
+library(zoo)
+library(knitr)
+library(ggplot2)
+library(reshape2)
+#################################################################
+#Load the Dataset
+#################################################################
+library(readxl)
+DATA2 <- read_excel("base_final.xlsx")
+
+# 1. Carregar os dados
+DATA2 <- read_excel("base_final.xlsx")
+
+# 2. Certifique-se de que a coluna de data está no formato adequado
+colnames(DATA2)[1] <- "Date"  # Renomeia a primeira coluna para "Date"
+DATA2$Date <- as.Date(DATA2$Date)  # Garante que a coluna de data está no formato Date
+colnames(DATA2)[2] <- "BOG"
+colnames(DATA2)[3] <- "BOM"  
+colnames(DATA2)[4] <- "FRG"  
+colnames(DATA2)[5] <- "LTE"  
+colnames(DATA2)[6] <- "OVO"  
+colnames(DATA2)[7] <- "SUI"  
+colnames(DATA2)[8] <- "MILHO"  
+colnames(DATA2)[9] <- "SOJA"  
+colnames(DATA2)[10] <- "CAMBIO"  
+
+# 4. Converter o data.frame para um formato longo (long format) para o ggplot
+data_long <- melt(DATA2, id.vars = "Date", variable.name = "Variável", value.name = "Valor")
+
+# 5. Criar gráficos de área separados para cada variável
+ggplot(data_long, aes(x = Date, y = Valor)) +  # Usar Date no eixo X
+  geom_area(fill = "blue", alpha = 0.6) +  # Cria gráfico de área com uma cor específica
+  facet_wrap(~ Variável, scales = "free_y") +  # Cria gráficos separados para cada variável
+  labs(title = "Variáveis ao longo do tempo", x = "Data", y = "Preço") +  # Ajuste os títulos
+  theme_minimal() +
+  theme(
+    legend.position = "none",  # Remove a legenda
+    strip.text = element_text(size = 14, family = "Times New Roman"),  # Aumenta o tamanho dos rótulos das facetas
+    plot.title = element_text(size = 16, face = "bold", family = "Times New Roman"),  # Define a fonte do título
+    axis.title = element_text(family = "Times New Roman"),  # Define a fonte dos títulos dos eixos
+    axis.text = element_text(family = "Times New Roman"),  # Define a fonte dos rótulos dos eixos
+    panel.grid.major = element_blank(),  # Remove a grade principal
+    panel.grid.minor = element_blank(),  # Remove a grade secundária
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Adiciona uma borda preta em cada gráfico
+  )
+
+#################################################################
+#Convert the data into Zoo format
+#################################################################
+DATA2 = data.frame(DATA2)
+data_not_ts = DATA2   # not a time series 
+data_not_ts$Date = as.Date(data_not_ts$Date) # Defining the date variable
+data_ts = zoo(data_not_ts[,c(2:10)], data_not_ts$Date) # converting it into time series with type zoo
+class(data_ts)        #check the class of the data
+
+#############################################
+#estimating the volatility
+#############################################
+NAMES = colnames(data_ts)
+k = ncol(data_ts)
+#First, estimate the returns
+return = data_ts[-1,]
+for (i in 1:k) {
+  x = embed(as.numeric(data_ts[,i]),2)
+  return[,i] = 100*(x[,1]-x[,2])/x[,2]}
+  
+# gráfico de retornos 
+#################################################################
+# Calcular os retornos (como você já fez)
+k <- ncol(data_ts)  # Número de colunas
+returns <- data_ts[-1,]  # Inicializa a matriz de retornos
+for (i in 1:k) {
+  x <- embed(as.numeric(data_ts[, i]), 2)
+  returns[, i] <- 100 * (x[, 1] - x[, 2]) / x[, 2]
+}
+
+# Converter a matriz de retornos para um data.frame para facilitar a visualização
+returns_df <- as.data.frame(returns)
+colnames(returns_df) <- colnames(data_ts)  # Renomear as colunas com os nomes originais de data_ts
+# Adicionar uma coluna de tempo (com meses)
+tempo <- seq(as.Date("1995-01-01"), by = "month", length.out = nrow(data_ts) - 1)  # Ajuste a data inicial conforme necessário
+returns_df$Data <- tempo  # Adiciona a coluna de data
+# Converter o data.frame para um formato longo (long format) para o ggplot
+returns_long <- melt(returns_df, id.vars = "Data", variable.name = "Série", value.name = "Retorno")
+# Criar gráficos de retornos separados para cada coluna
+ggplot(returns_long, aes(x = Data, y = Retorno)) +  # Usar Data no eixo X
+  geom_line(color = "blue") +  # Define a cor da linha como azul
+  facet_wrap(~ Série, scales = "free_y") +  # Cria gráficos separados para cada série
+  labs(title = "Retornos ao longo do tempo", x = "Ano", y = "Retorno (%)") +  # Ajuste o título do eixo X aqui
+  theme_minimal() +
+  theme(
+    legend.position = "none",  # Remove a legenda, pois cada gráfico é rotulado
+    strip.text = element_text(size = 14, family = "Times New Roman"),  # Aumenta o tamanho dos rótulos das facetas e define a fonte
+    plot.title = element_text(size = 16, face = "bold", family = "Times New Roman"),  # Define a fonte do título
+    axis.title = element_text(family = "Times New Roman"),  # Define a fonte dos títulos dos eixos
+    axis.text = element_text(family = "Times New Roman"),  # Define a fonte dos rótulos dos eixos
+    panel.grid.major = element_blank(),  # Remove a grade principal
+    panel.grid.minor = element_blank(),  # Remove a grade secundária
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Adiciona uma borda preta em cada gráfico
+  )
+#################################################################
+
+#Second, estimate the volatility
+volatility = abs(return)
+
+# gráfico da volatilidade
+#################################################################
+# Converter a matriz de volatilidade para um data.frame para facilitar a visualização
+volatility_df <- as.data.frame(volatility)
+colnames(volatility_df) <- colnames(data_ts)  # Renomear as colunas com os nomes originais de data_ts
+# Adicionar uma coluna de tempo (com meses)
+tempo <- seq(as.Date("1995-01-01"), by = "month", length.out = nrow(data_ts) - 1)  # Ajuste conforme necessário
+volatility_df$Data <- tempo
+# Converter o data.frame para um formato longo (long format) para o ggplot
+volatility_long <- melt(volatility_df, id.vars = "Data", variable.name = "Série", value.name = "Volatilidade")
+# Criar gráficos de volatilidade separados para cada coluna
+ggplot(volatility_long, aes(x = Data, y = Volatilidade)) +  # Usar Data no eixo X
+  geom_line(color = "blue") +  # Define a cor da linha como azul
+  facet_wrap(~ Série, scales = "free_y") +  # Cria gráficos separados para cada série
+  labs(title = "Volatilidade ao longo do tempo", x = "Data", y = "Volatilidade") +  # Ajuste o título do eixo X aqui
+  theme_minimal() +
+  theme(
+    legend.position = "none",  # Remove a legenda, pois cada gráfico é rotulado
+    strip.text = element_text(size = 14, family = "Times New Roman"),  # Aumenta o tamanho dos rótulos das facetas e define a fonte
+    plot.title = element_text(size = 16, face = "bold", family = "Times New Roman"),  # Define a fonte do título
+    axis.title = element_text(family = "Times New Roman"),  # Define a fonte dos títulos dos eixos
+    axis.text = element_text(family = "Times New Roman"),  # Define a fonte dos rótulos dos eixos
+    panel.grid.major = element_blank(),  # Remove a grade principal
+    panel.grid.minor = element_blank(),  # Remove a grade secundária
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Adiciona uma borda preta em cada gráfico
+  )
+
+#################################################################
+#Estimate the model
+################################################################
+partition = c(pi+0.00001, pi/5, 0)
+
+##### select on of  "VAR", "QVAR", "LASSO", "Ridge", "Elastic", "TVP-VAR", "DCC-GARCH"
+##### should be one of "Time", "Frequency", "Joint", "Extended Joint"
+dca = ConnectednessApproach(volatility, 
+                            nlag=1, 
+                            nfore=100,
+                            window.size=200,
+                            model="TVP-VAR",
+                            connectedness="Time",
+                            VAR_config=list(TVPVAR=list(kappa1=0.99, kappa2=0.96, prior="BayesPrior")))
+
+#descriptives and correlation
+kable(SummaryStatistics(return, correlation="pearson"))
+
+#connectedness Table
+kable(dca$TABLE)
+
+#Figure 1: Dynamic Total Connectedness
+PlotTCI(dca, ylim=c(0,50))
+#Figure 2: Total directional connectedness from others
+PlotFROM(dca, ylim=c(0,80))
+#Figure 3: Total directional connectedness to others
+PlotTO(dca, ylim=c(0,100))
+#Figure 4: Net Total Directional Connectedness
+PlotNET(dca, ylim=c(-35,35))
+#Figure 5: Net Pairwise Directional Connectedness
+PlotNPDC(dca, ylim=c(-11,11))
+# Figure 6: Pairwiwe Connectnedness Index
+PlotPCI(dca, ylim=c(0,100))
+# Figure 7: Net pairwise transmission plot which illustrates how many series series i dominates.
+PlotNPT(dca)
+# Figure 9: Net influence index which highlights the changes in percentage and not in levels
+PlotINF(dca, ylim=c(0,100))
+# Figure 10: Network plots based on NPDC
+PlotNetwork(dca, method="NPDC")
+# Figure 11: Network plots based on PCI
+PlotNetwork(dca, method="PCI")
+
+
+
+###################################################
+#### Asymmetric Connectedness estimation
+###########################################
+
+Y = Yp = Yn = data_ts[-1,]
+k = ncol(Y)
+for (i in 1:k) {  x = embed(as.numeric(data_ts[,i]),2)
+  Y[,i] = Yp[,i] = Yn[,i] = 100*(x[,1]-x[,2])/x[,2]
+  Yp[which(Y[,i]<0),i] = 0
+  Yn[which(Y[,i]>0),i] = 0}
+  Y_list = list(Y, Yp, Yn)
+  Y_list
+  
+  DCA = list()
+  WINDOW.SIZE = c(50, 100, 200)
+  spec = c("all", "positive", "negative")
+  for (i in 1:length(Y_list)) {
+  DCA[[i]] = suppressMessages(ConnectednessApproach(Y_list[[i]], 
+                                                    model="TVP-VAR",
+                                                    connectedness="Time",
+                                                    nlag=1,
+                                                    nfore=100,
+                                                    window.size=200,
+                                                    VAR_config=list(TVPVAR=list(kappa1=0.99, kappa2=0.99, prior="MinnesotaPrior", gamma=0.1))))
+  kable(DCA[[i]]$TABLE)}
+  
+  ## Connectedness tables: returns, positive returns and negative returns 
+kable(DCA[[1]]$TABLE)
+kable(DCA[[2]]$TABLE)
+kable(DCA[[3]]$TABLE)
+  
+#Figure 7: Dynamic Total Connectedness for asymmetry
+PlotTCI(DCA[[1]], ca=list(DCA[[2]], DCA[[3]]), ylim=c(0,50))
+
+#Figure 8: Dynamic Total Connectedness  for asymmetry
+PlotFROM(DCA[[1]], ca=list(DCA[[2]], DCA[[3]]), ylim=c(0,80))
+#Figure 9: Dynamic Total Connectedness  for asymmetry
+PlotTO(DCA[[1]], ca=list(DCA[[2]], DCA[[3]]), ylim=c(0,110))
+#Figure 10: Net Total Directional Connectedness for asymmetry
+PlotNET(DCA[[1]], ca=list(DCA[[2]], DCA[[3]]), ylim=c(-40,40))
+#Figure 11: Net Pairwise Directional Connectedness for asymmetry
+PlotNPDC(DCA[[1]], ca=list(DCA[[2]], DCA[[3]]), ylim=c(-15,15))
+# Figure 12: Pairwise Connectedness Index for asymmetry
+PlotPCI(DCA[[1]], ca=list(DCA[[2]], DCA[[3]]), ylim=c(0,100))
+
